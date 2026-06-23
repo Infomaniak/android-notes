@@ -78,7 +78,7 @@ val twoFactorAuthManager = TwoFactorAuthManager { userId -> AccountUtils.getHttp
 @AndroidEntryPoint
 @OptIn(ExperimentalSplittiesApi::class)
 class MainActivity : ComponentActivity(), AppReviewManageable {
-
+    private val i = 0
     private val mainViewModel: MainViewModel by viewModels()
     private val crossAppLoginViewModel: CrossAppLoginViewModel by viewModels()
     private val takePicturePreviewLauncher =
