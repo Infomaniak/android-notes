@@ -52,7 +52,7 @@
 
         <meta-data
             android:name="io.sentry.dsn"
-            android:value="https://eeda847c9979c3f5ed178cb6a5ed32a6@sentry-mobile.infomaniak.com/22" />
+            android:value="https://a1f7f5d2a772c76ec9a9e1c20229c619@sentry-mobile.infomaniak.com/26" />
 
         <activity
             android:name=".MainActivity"
