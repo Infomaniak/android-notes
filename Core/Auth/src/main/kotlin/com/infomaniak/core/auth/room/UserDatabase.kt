@@ -1,0 +1,104 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2022-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+@file:Suppress("NOTHING_TO_INLINE")
+
+package com.infomaniak.core.auth.room
+
+import android.content.Context
+import androidx.room.AutoMigration
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.infomaniak.core.auth.models.CurrentUserId
+import com.infomaniak.core.auth.models.OrganizationAccount
+import com.infomaniak.core.auth.models.user.User
+import splitties.init.appCtx
+
+@Database(
+    entities = [User::class, CurrentUserId::class],
+    autoMigrations = [
+        AutoMigration(
+            from = 1, to = 2,
+            spec = UserV2Migration::class
+        ),
+        AutoMigration(
+            from = 2, to = 3,
+            spec = UserV3Migration::class
+        ),
+        AutoMigration(from = 3, to = 4),
+        AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
+        AutoMigration(
+            from = 6, to = 7,
+            spec = UserV7Migration::class,
+        ),
+        AutoMigration(from = 7, to = 8),
+    ],
+    version = 8,
+    exportSchema = true
+)
+
+@TypeConverters(UserConverter::class)
+abstract class UserDatabase internal constructor() : RoomDatabase() {
+
+    abstract fun userDao(): UserDao
+    abstract fun currentUserIdDao(): CurrentUserIdDao
+
+    companion object {
+
+        inline operator fun invoke(): UserDatabase = instance
+
+        fun getDatabase(): UserDatabase = instance
+
+        @PublishedApi
+        internal val instance = instantiateDataBase(appCtx)
+
+        fun instantiateDataBase(context: Context, inMemory: Boolean = false): UserDatabase {
+            val databaseBuilder: Builder<UserDatabase> = if (inMemory) {
+                Room.inMemoryDatabaseBuilder(context)
+            } else {
+                Room.databaseBuilder(context = context, name = "user_database")
+            }
+
+            return databaseBuilder.apply {
+                enableMultiInstanceInvalidation()
+                fallbackToDestructiveMigration(dropAllTables = true)
+            }.build()
+        }
+    }
+}
+
+class UserConverter {
+    private val gson: Gson by lazy { Gson() }
+
+    private val organizationAccountsType = object : TypeToken<ArrayList<OrganizationAccount>>() {}.type
+
+    @TypeConverter
+    fun organizationsToJson(organizationAccounts: ArrayList<OrganizationAccount>): String {
+        return gson.toJson(organizationAccounts, organizationAccountsType)
+    }
+
+    @TypeConverter
+    fun toOrganizationAccount(json: String?): ArrayList<OrganizationAccount> {
+        return gson.fromJson(json, organizationAccountsType)
+    }
+}

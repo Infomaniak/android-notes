@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Infomaniak Notes - Android
+  ~ Copyright (C) 2025-2026 Infomaniak Network SA
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+<resources>
+    <plurals name="buttonContinueWithAccounts">
+        <item quantity="one">Continua con questo account</item>
+        <item quantity="other">Continua con questi conti</item>
+    </plurals>
+    <string name="buttonStart">Inizia</string>
+    <string name="buttonUseOtherAccount">Utilizza un altro account</string>
+    <string name="crossAppLoginAccountsLoaderTitle">Recuperare i conti…</string>
+    <string name="selectAccountPanelTitle">Seleziona uno o più account</string>
+    <string name="selectSingleAccountPanelTitle">Selezionare un account</string>
+    <plurals name="selectedAccountCountLabel">
+        <item quantity="one">%d conto selezionato</item>
+        <item quantity="other">%d conti selezionati</item>
+    </plurals>
+</resources>

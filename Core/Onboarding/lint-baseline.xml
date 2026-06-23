@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues name="AGP (8.13.0)" by="lint 8.13.0" client="gradle" dependencies="false" format="6" type="baseline" variant="all"
+    version="8.13.0">
+
+    <issue errorLine1="fun HighlightedText(" errorLine2="                   ^" id="ComposeParameterOrder"
+        message="Parameters in a composable function should be ordered following this pattern: params without defaults, modifiers, params with defaults and optionally, a trailing function that might not have a default param.&#xA;Current params are: [modifier: Modifier = Modifier, template: String, argument: String, style: TextStyle, verticalPadding: Float = VERTICAL_PADDING, horizontalPadding: Float = HORIZONTAL_PADDING, angleDegrees: Double = ROTATION_ANGLE_DEGREE, highlightedColor: Color, isHighlighted: () -> Boolean] but should be [template: String, argument: String, style: TextStyle, highlightedColor: Color, modifier: Modifier = Modifier, verticalPadding: Float = VERTICAL_PADDING, horizontalPadding: Float = HORIZONTAL_PADDING, angleDegrees: Double = ROTATION_ANGLE_DEGREE, isHighlighted: () -> Boolean].&#xA;See https://slackhq.github.io/compose-lints/rules/#ordering-composable-parameters-properly for more information.">
+        <location column="20" file="src/main/kotlin/com/infomaniak/core/onboarding/components/HighlightedText.kt" line="50" />
+    </issue>
+
+    <issue errorLine1="fun HorizontalPagerIndicator(" errorLine2="                            ^" id="ComposeParameterOrder"
+        message="Parameters in a composable function should be ordered following this pattern: params without defaults, modifiers, params with defaults and optionally, a trailing function that might not have a default param.&#xA;Current params are: [modifier: Modifier = Modifier, pagerState: PagerState, indicatorStyle: IndicatorStyle = HorizontalPagerIndicatorDefaults.style()] but should be [pagerState: PagerState, modifier: Modifier = Modifier, indicatorStyle: IndicatorStyle = HorizontalPagerIndicatorDefaults.style()].&#xA;See https://slackhq.github.io/compose-lints/rules/#ordering-composable-parameters-properly for more information.">
+        <location column="29" file="src/main/kotlin/com/infomaniak/core/onboarding/HorizontalPagerIndicator.kt" line="44" />
+    </issue>
+
+</issues>

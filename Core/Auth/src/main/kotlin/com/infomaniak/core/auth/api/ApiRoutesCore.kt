@@ -1,0 +1,36 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2022-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package com.infomaniak.core.auth.api
+
+import com.infomaniak.core.network.INFOMANIAK_API
+import com.infomaniak.core.network.INFOMANIAK_API_V1
+import com.infomaniak.core.network.LOGIN_ENDPOINT_URL
+
+object ApiRoutesCore {
+
+    val TOKEN_URL = "$LOGIN_ENDPOINT_URL/token"
+
+    fun getUserProfile(): String {
+        // TODO: Create a module for all the URLs?
+        return "$INFOMANIAK_API/profile?no_avatar_default=1"
+    }
+
+    fun sendDeviceInfo(): String {
+        return "$INFOMANIAK_API_V1/devices"
+    }
+}

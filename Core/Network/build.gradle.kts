@@ -1,0 +1,59 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(core.plugins.android.library)
+    alias(core.plugins.kotlin.android)
+}
+
+val coreCompileSdk: Int by rootProject.extra
+val coreMinSdk: Int by rootProject.extra
+val javaVersion: JavaVersion by rootProject.extra
+
+android {
+    namespace = "com.infomaniak.core.network"
+    compileSdk = coreCompileSdk
+
+    defaultConfig {
+        minSdk = coreMinSdk
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    compileOptions {
+        sourceCompatibility = javaVersion
+        targetCompatibility = javaVersion
+    }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(javaVersion.toString()))
+        }
+    }
+}
+
+dependencies {
+    api(project(":Network:Models"))
+    implementation(project(":Sentry"))
+
+    implementation(core.androidx.core.ktx)
+    implementation(core.gson)
+    implementation(core.kotlinx.serialization.json)
+    implementation(core.ktor.client.core)
+    implementation(core.okhttp)
+    implementation(core.splitties.mainhandler)
+    implementation(core.splitties.systemservices)
+    implementation(core.splitties.toast)
+    implementation(core.stetho.okhttp3)
+}

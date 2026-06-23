@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Infomaniak Notes - Android
+  ~ Copyright (C) 2025-2026 Infomaniak Network SA
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+<resources>
+    <color name="startGradient">#FF24405b</color>
+    <color name="endGradient">#121318</color>
+    <color name="background">#131415</color>
+
+    <color name="title">@color/white</color>
+
+    <color name="appBar">#2D2E30</color>
+    <color name="border">#6F7071</color>
+
+    <color name="splashscreenBrand">@color/white</color>
+
+    <color name="widgetBackground">#2A5178</color>
+    <color name="widgetButtonBackground">#133855</color>
+    <color name="widgetButtonImageTint">@color/white</color>
+    <color name="widgetTextColor">@color/white</color>
+
+    <color name="widgetRipple">#29FFFFFF</color>
+</resources>

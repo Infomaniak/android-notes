@@ -1,0 +1,81 @@
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    includeBuild("build-logic")
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+//        mavenLocal() // Only used when we want to use a local version of a library (./gradlew publishToMavenLocal)
+        maven { url = uri("https://jitpack.io") }
+    }
+
+    versionCatalogs {
+        create("core") {
+            from(files("gradle/core.versions.toml"))
+        }
+    }
+}
+
+include(
+    ":AppIntegrity",
+    ":AppLock",
+    ":AppVersionChecker",
+    ":Auth",
+    ":Avatar",
+    ":BugTracker",
+    ":Coil",
+    ":Common",
+    ":DataValue",
+    ":CrossAppLogin:Back",
+    ":CrossAppLogin:Front",
+    ":DotLottie",
+    ":File",
+    ":FileTypes",
+    ":FragmentNavigation",
+    ":InAppReview",
+    ":InAppUpdate",
+    ":KSuite",
+    ":Ktor",
+    ":KSuite:KSuitePro",
+    ":KSuite:MyKSuite",
+    ":Login",
+    ":Matomo",
+    ":Network",
+    ":Network:Ktor",
+    ":Network:Models",
+    ":Notifications",
+    ":Notifications:Registration",
+    ":Onboarding",
+    ":PermissionManager",
+    ":PrivacyManagement",
+    ":RecyclerView",
+    ":Sentry",
+    ":SharedValues",
+    ":Thumbnails",
+    ":TwoFactorAuth:Back",
+    ":TwoFactorAuth:Back:WithUserDb",
+    ":TwoFactorAuth:Front",
+    ":Ui:Compose:AccountBottomSheet",
+    ":Ui:Compose:BasicButton",
+    ":Ui:Compose:Basics",
+    ":Ui:Compose:BottomStickyButtonScaffolds",
+    ":Ui:Compose:Margin",
+    ":Ui:Compose:MaterialThemeFromXml",
+    ":Ui:Compose:Preview",
+    ":Ui:Compose:Theme",
+    ":Ui:View",
+    ":Ui:View:EdgeToEdge",
+    ":WebView",
+)

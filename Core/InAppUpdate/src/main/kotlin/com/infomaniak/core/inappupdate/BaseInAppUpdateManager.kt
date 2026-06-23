@@ -1,0 +1,166 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package com.infomaniak.core.inappupdate
+
+import androidx.activity.ComponentActivity
+import androidx.annotation.StyleRes
+import androidx.datastore.preferences.core.Preferences
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.flowWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.infomaniak.core.appversionchecker.data.api.ApiRepositoryAppVersion
+import com.infomaniak.core.appversionchecker.data.models.AppVersion
+import com.infomaniak.core.common.extensions.goToAppStore
+import com.infomaniak.core.inappupdate.AppUpdateSettingsRepository.Companion.APP_UPDATE_LAUNCHES_KEY
+import com.infomaniak.core.inappupdate.AppUpdateSettingsRepository.Companion.DEFAULT_APP_UPDATE_LAUNCHES
+import com.infomaniak.core.inappupdate.AppUpdateSettingsRepository.Companion.HAS_APP_UPDATE_DOWNLOADED_KEY
+import com.infomaniak.core.inappupdate.AppUpdateSettingsRepository.Companion.IS_USER_WANTING_UPDATES_KEY
+import com.infomaniak.core.inappupdate.ui.UpdateRequiredActivity.Companion.startUpdateRequiredActivity
+import com.infomaniak.core.inappupdate.updatemanagers.InAppUpdateManager
+import com.infomaniak.core.network.NetworkConfiguration.appId
+import com.infomaniak.core.network.NetworkConfiguration.appVersionName
+import com.infomaniak.core.network.networking.DefaultHttpClientProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+abstract class BaseInAppUpdateManager(private val activity: ComponentActivity) : DefaultLifecycleObserver {
+
+    abstract val store: AppVersion.Store
+    abstract val appUpdateTag: String
+
+    protected var onInAppUpdateUiChange: ((Boolean) -> Unit)? = null
+    protected var onFDroidResult: ((Boolean) -> Unit)? = null
+
+    private val appUpdateSettingsRepository = AppUpdateSettingsRepository(activity)
+
+    var isUpdateBottomSheetShown = false
+
+    val canInstallUpdate = appUpdateSettingsRepository
+        .flowFor(HAS_APP_UPDATE_DOWNLOADED_KEY).distinctUntilChanged()
+
+    val isUpdateRequired = flow {
+        val projectionFields = listOf(
+            AppVersion.ProjectionFields.MinVersion,
+            AppVersion.ProjectionFields.PublishedVersionMinOs,
+            AppVersion.ProjectionFields.PublishedVersionType,
+            AppVersion.ProjectionFields.PublishedVersionsTag
+        )
+        val apiResponse = ApiRepositoryAppVersion.getAppVersion(
+            appName = appId,
+            store = store,
+            projectionFields = projectionFields,
+            channelFilter = AppVersion.VersionChannel.Production,
+            okHttpClient = DefaultHttpClientProvider.okHttpClient,
+        )
+
+        emit(apiResponse.data?.mustRequireUpdate(appVersionName, AppVersion.VersionChannel.Production) == true)
+    }.stateIn(
+        scope = activity.lifecycleScope,
+        started = SharingStarted.Eagerly,
+        initialValue = false,
+    )
+
+    open fun installDownloadedUpdate() = Unit
+
+    open fun requireUpdate(onFailure: ((Exception) -> Unit)? = null) = activity.goToAppStore()
+
+    open fun init(
+        isUpdateRequired: Boolean = false,
+        onUserChoice: ((Boolean) -> Unit)? = null,
+        onInstallStart: (() -> Unit)? = null,
+        onInstallFailure: ((Exception) -> Unit)? = null,
+        onInstallSuccess: (() -> Unit)? = null,
+        onInAppUpdateUiChange: ((Boolean) -> Unit)? = null,
+        onFDroidResult: ((Boolean) -> Unit)? = null,
+    ) = init(isUpdateRequired, onInAppUpdateUiChange, onFDroidResult)
+
+    protected fun init(
+        isUpdateRequired: Boolean = false,
+        onInAppUpdateUiChange: ((Boolean) -> Unit)? = null,
+        onFDroidResult: ((Boolean) -> Unit)? = null,
+    ) {
+        this.onInAppUpdateUiChange = onInAppUpdateUiChange
+        this.onFDroidResult = onFDroidResult
+
+        if (!isUpdateRequired) activity.lifecycle.addObserver(observer = this)
+    }
+
+    protected abstract fun checkUpdateIsAvailable()
+
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
+
+        if (!isUpdateBottomSheetShown) shouldCheckUpdate(::checkUpdateIsAvailable)
+        decrementAppUpdateLaunches()
+    }
+
+    //region Repository
+    fun <T> set(key: Preferences.Key<T>, value: T) = activity.lifecycleScope.launch(Dispatchers.IO) {
+        appUpdateSettingsRepository.setValue(key, value)
+    }
+
+    fun resetUpdateSettings() = activity.lifecycleScope.launch(Dispatchers.IO) {
+        appUpdateSettingsRepository.resetUpdateSettings()
+    }
+
+    fun decrementAppUpdateLaunches() = activity.lifecycleScope.launch(Dispatchers.IO) {
+        val appUpdateLaunches = appUpdateSettingsRepository.getValue(APP_UPDATE_LAUNCHES_KEY)
+        set(APP_UPDATE_LAUNCHES_KEY, appUpdateLaunches - 1)
+    }
+
+    fun shouldCheckUpdate(checkUpdateCallback: () -> Unit) = activity.lifecycleScope.launch(Dispatchers.IO) {
+        if (appUpdateSettingsRepository.getValue(IS_USER_WANTING_UPDATES_KEY) ||
+            appUpdateSettingsRepository.getValue(APP_UPDATE_LAUNCHES_KEY) <= 0
+        ) {
+            checkUpdateCallback()
+            appUpdateSettingsRepository.setValue(APP_UPDATE_LAUNCHES_KEY, DEFAULT_APP_UPDATE_LAUNCHES)
+        }
+    }
+    //endregion
+
+    companion object {
+        fun FragmentActivity.checkUpdateIsRequired(
+            manager: InAppUpdateManager,
+            applicationId: String,
+            applicationVersionCode: Int,
+            @StyleRes theme: Int
+        ) {
+            lifecycleScope.launch {
+                manager.isUpdateRequired
+                    .flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+                    .collect { isUpdateRequired ->
+                        if (isUpdateRequired) {
+                            startUpdateRequiredActivity(
+                                context = this@checkUpdateIsRequired,
+                                appId = applicationId,
+                                versionCode = applicationVersionCode,
+                                appTheme = theme
+                            )
+                        }
+                    }
+            }
+        }
+    }
+}

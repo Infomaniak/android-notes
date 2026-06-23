@@ -1,0 +1,127 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+@file:OptIn(ExperimentalSplittiesApi::class)
+
+package com.infomaniak.core.crossapplogin.back.internal.deviceinfo
+
+import android.os.Build.VERSION.SDK_INT
+import androidx.core.util.AtomicFile
+import com.infomaniak.core.auth.room.UserDatabase
+import com.infomaniak.core.common.AssociatedUserDataCleanable
+import com.infomaniak.core.common.allConcurrent
+import com.infomaniak.core.common.extensions.write
+import com.infomaniak.core.crossapplogin.back.CrossAppLogin
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.invoke
+import splitties.coroutines.suspendBlockingLazy
+import splitties.experimental.ExperimentalSplittiesApi
+import splitties.init.appCtx
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.FileNotFoundException
+import java.io.IOException
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
+
+@OptIn(ExperimentalUuidApi::class)
+object DeviceInfoUpdateManager : AssociatedUserDataCleanable {
+
+    private val lastSyncedKeyDir by lazy { appCtx.filesDir.resolve("lastSyncedDeviceInfoKeys") }
+
+    val currentAppVersionData = suspendBlockingLazy(Dispatchers.IO) {
+        appCtx.packageManager.getPackageInfo(appCtx.packageName, 0).let {
+            val versionCode = when {
+                SDK_INT >= 28 -> it.longVersionCode
+                else -> @Suppress("Deprecation") it.versionCode.toLong()
+            }
+            AppVersionData(versionName = it.versionName, versionCode = versionCode)
+        }
+    }
+
+    override suspend fun resetForUser(userId: Long) = Dispatchers.IO {
+        lastSyncKeyFileForUser(userId).delete()
+    }
+
+    @Throws(IOException::class)
+    suspend fun isUpToDate(crossAppDeviceId: Uuid, userId: Long): Boolean = Dispatchers.IO {
+        try {
+            val lastSyncedUuid: Uuid
+            val lastSyncedAppVersion: Long
+            val lastSyncedKeyFile = lastSyncKeyFileForUser(userId)
+            DataInputStream(lastSyncedKeyFile.openRead()).use { stream ->
+                lastSyncedUuid = Uuid.fromLongs(
+                    mostSignificantBits = stream.readLong(),
+                    leastSignificantBits = stream.readLong()
+                )
+                lastSyncedAppVersion = stream.readLong()
+            }
+            val currentAppVersion = currentAppVersionData().versionCode
+            currentAppVersion == lastSyncedAppVersion && lastSyncedUuid == crossAppDeviceId
+        } catch (_: FileNotFoundException) {
+            false
+        }
+    }
+
+    @Throws(IOException::class)
+    suspend fun updateLastSyncedKey(crossAppDeviceId: Uuid, userId: Long) = Dispatchers.IO {
+        val lastSyncedKeyFile = lastSyncKeyFileForUser(userId)
+        val currentAppVersion = currentAppVersionData().versionCode
+        lastSyncedKeyFile.write { outputStream ->
+            DataOutputStream(outputStream).use {
+                crossAppDeviceId.toLongs { mostSignificantBits: Long, leastSignificantBits: Long ->
+                    it.writeLong(mostSignificantBits)
+                    it.writeLong(leastSignificantBits)
+                    it.writeLong(currentAppVersion)
+                }
+            }
+        }
+    }
+
+    suspend inline fun <reified T : AbstractDeviceInfoUpdateWorker> scheduleWorkerOnDeviceInfoUpdate(): Nothing =
+        Dispatchers.Default {
+            val crossAppLogin = CrossAppLogin.forContext(context = appCtx, coroutineScope = this)
+            crossAppLogin.sharedDeviceIdFlow.collectLatest { currentCrossAppDeviceId ->
+
+                // We need to check for updates when the set of users changes, or when any of their token changes.
+                // When the token is refreshed, the corresponding file is supposed to have been cleared,
+                // so that the up-to-date check triggers a new schedule.
+                //TODO[Core-associated-user-data]: Factorize this duplicate code, and possibly the common logic.
+                val userIdsFlow = UserDatabase().userDao().allUsers.map { users ->
+                    users.filterNot { it.apiToken.isTemporary }.map { it.id to it.apiToken }
+                }.distinctUntilChanged().map { it.map { (id, _) -> id } }
+
+                userIdsFlow.collect { userIds ->
+                    val isEverythingUpToDate = userIds.allConcurrent { isUpToDate(currentCrossAppDeviceId, it.toLong()) }
+                    if (isEverythingUpToDate) return@collect
+                    AbstractDeviceInfoUpdateWorker.schedule<T>()
+                }
+            }
+            awaitCancellation()
+        }
+
+    private fun lastSyncKeyFileForUser(userId: Long): AtomicFile = AtomicFile(lastSyncedKeyDir.resolve("$userId"))
+
+    data class AppVersionData(
+        val versionName: String?,
+        val versionCode: Long,
+    )
+}
