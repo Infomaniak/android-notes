@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Infomaniak Notes - Android
+  ~ Copyright (C) 2024-2026 Infomaniak Network SA
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+<resources>
+    <string name="anErrorHasOccurred">Se ha producido un error</string>
+    <string name="applicationSourceCode">Ver código fuente</string>
+    <string name="browserNotFound">No se ha encontrado ningún navegador</string>
+    <string name="buttonCancel">Cancelar</string>
+    <string name="buttonClose">Cerrar</string>
+    <string name="buttonCreateAccount">Crear una cuenta</string>
+    <string name="buttonLater">Más tarde</string>
+    <string name="buttonLogin">Inicio de sesión</string>
+    <string name="buttonNext">Siguiente</string>
+    <string name="buttonNo">No</string>
+    <string name="buttonRetry">Reintentar</string>
+    <string name="buttonSave">Guardar</string>
+    <string name="buttonYes">Sí</string>
+    <string name="connectionError">Problema de conexión a Internet</string>
+    <string name="crossAppLoginIntegrityError">Recuperación de cuentas no disponible</string>
+    <string name="errorDownload">Error al descargar</string>
+    <string name="errorDownloadInsufficientSpace">No se puede descargar: espacio insuficiente</string>
+    <plurals name="myAccount">
+        <item quantity="one">Mi cuenta</item>
+        <item quantity="other">Mis cuentas</item>
+    </plurals>
+    <string name="reviewAlertTitle">¿Te gusta %s?</string>
+    <string name="startActivityCantHandleAction">No se ha encontrado ninguna aplicación que gestione esta acción</string>
+    <string name="trackingAuthorizeTracking">Autorizar el seguimiento</string>
+    <string name="trackingManagementDescription">En Infomaniak, sus datos nunca son moneda de cambio. Solo utilizamos herramientas internas, alojadas y controladas por nosotros mismos, para garantizar la calidad y el desarrollo de nuestras aplicaciones.\n\nEstos datos técnicos son confidenciales, se almacenan en nuestros propios servidores en Suiza, sólo son accesibles a nuestros equipos de desarrollo y nunca se comparten con terceros. El código fuente de nuestras aplicaciones puede verificarse, lo que garantiza una total transparencia.</string>
+    <string name="trackingManagementTitle">Gestión de datos</string>
+    <string name="trackingMatomoDescription">Matomo es una herramienta de análisis alojada y gestionada exclusivamente por Infomaniak para comprender cómo se utiliza la aplicación.\n\nEl estudio de estos datos permite a nuestro equipo mejorar continuamente la interfaz de la aplicación.</string>
+    <string name="trackingMatomoTitle">Matomo</string>
+    <string name="trackingSentryDescription">Sentry es una herramienta alojada y gestionada en exclusiva por Infomaniak para supervisar la estabilidad de la aplicación en tiempo real e informar automáticamente de cualquier error técnico a nuestros desarrolladores.\n\nEstos datos permiten a nuestro equipo corregir y optimizar rápidamente la aplicación, lo que se traduce en una mejor experiencia de usuario para usted.</string>
+    <string name="trackingSentryTitle">Sentry</string>
+    <string name="youHaveBeenDisconnectedLabel">Ha sido desconectado</string>
+</resources>

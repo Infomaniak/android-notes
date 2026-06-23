@@ -1,0 +1,27 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+
+    extra.apply {
+        set(
+            "appCompileSdk",
+            37
+        ) // Ensure any extra configChanges are added into Activities' manifests.
+        set("appTargetSdk", 37)
+        set("appMinSdk", 27)
+        set("legacyMinSdk", 27)
+        set("javaVersion", JavaVersion.VERSION_17)
+    }
+}
+
+plugins {
+    alias(core.plugins.android.application) apply false
+    alias(core.plugins.android.library) apply false
+    alias(libs.plugins.jetbrains.kotlin.android) apply false
+    alias(libs.plugins.jetbrains.kotlin.serialization) apply false
+    alias(core.plugins.kapt) apply false
+    alias(core.plugins.navigation.safeargs) apply false
+}
+
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
+}

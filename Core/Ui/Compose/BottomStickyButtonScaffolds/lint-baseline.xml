@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues name="AGP (8.13.0)" by="lint 8.13.0" client="gradle" dependencies="false" format="6" type="baseline" variant="all"
+    version="8.13.0">
+
+    <issue errorLine1="fun BottomStickyButtonScaffold(" errorLine2="                              ^" id="ComposeParameterOrder"
+        message="Parameters in a composable function should be ordered following this pattern: params without defaults, modifiers, params with defaults and optionally, a trailing function that might not have a default param.&#xA;Current params are: [modifier: Modifier = Modifier, snackbarHostState: SnackbarHostState? = null, maxPaneWidth: Dp = LocalScaffoldTheme.current.singlePaneMaxWidth, stackedButtonVerticalPadding: Dp = LocalScaffoldTheme.current.stackedButtonVerticalPadding, containerColor: Color = MaterialTheme.colorScheme.background, topBar: @Composable () -> Unit, topButton: @Composable ((Modifier) -> Unit)? = null, bottomButton: @Composable ((Modifier) -> Unit)? = null, content: @Composable BoxScope.() -> Unit] but should be [topBar: @Composable () -> Unit, modifier: Modifier = Modifier, snackbarHostState: SnackbarHostState? = null, maxPaneWidth: Dp = LocalScaffoldTheme.current.singlePaneMaxWidth, stackedButtonVerticalPadding: Dp = LocalScaffoldTheme.current.stackedButtonVerticalPadding, containerColor: Color = MaterialTheme.colorScheme.background, topButton: @Composable ((Modifier) -> Unit)? = null, bottomButton: @Composable ((Modifier) -> Unit)? = null, content: @Composable BoxScope.() -> Unit].&#xA;See https://slackhq.github.io/compose-lints/rules/#ordering-composable-parameters-properly for more information.">
+        <location column="31"
+            file="src/main/kotlin/com/infomaniak/core/ui/compose/bottomstickybuttonscaffolds/BottomStickyButtonScaffold.kt"
+            line="47" />
+    </issue>
+
+</issues>

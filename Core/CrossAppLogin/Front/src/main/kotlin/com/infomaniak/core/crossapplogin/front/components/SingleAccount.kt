@@ -1,0 +1,106 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package com.infomaniak.core.crossapplogin.front.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import com.infomaniak.core.crossapplogin.back.ExternalAccount
+import com.infomaniak.core.crossapplogin.front.data.CrossLoginCustomization
+import com.infomaniak.core.crossapplogin.front.data.CrossLoginDefaults
+import com.infomaniak.core.crossapplogin.front.previews.AccountsPreviewParameter
+import com.infomaniak.core.crossapplogin.front.views.components.smallProgressStrokeWidth
+import com.infomaniak.core.ui.compose.basics.Dimens
+import com.infomaniak.core.ui.compose.basics.Typography
+import com.infomaniak.core.ui.compose.margin.Margin
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SingleAccount(
+    account: ExternalAccount,
+    customization: CrossLoginCustomization,
+    modifier: Modifier = Modifier,
+    isLoading: () -> Boolean = { false },
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CrossLoginAvatar(
+            modifier = Modifier
+                .size(Dimens.bigAvatarSize)
+                .clip(CircleShape),
+            account = account,
+        )
+
+        Spacer(Modifier.width(Margin.Mini))
+
+        Column {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Margin.Mini),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = account.fullName,
+                    style = Typography.bodyMedium,
+                    color = customization.colors.titleColor,
+                )
+                if (isLoading()) {
+                    CircularProgressIndicator(Modifier.size(Dimens.smallIconSize), strokeWidth = smallProgressStrokeWidth)
+                }
+            }
+            Text(
+                text = account.email,
+                style = Typography.bodyRegular,
+                color = customization.colors.descriptionColor,
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun Preview(@PreviewParameter(AccountsPreviewParameter::class) accounts: List<ExternalAccount>) {
+    MaterialTheme {
+        Surface {
+            Row {
+                SingleAccount(
+                    account = accounts.first(),
+                    customization = CrossLoginDefaults.customize(),
+                    isLoading = { true },
+                    modifier = Modifier.weight(1.0f),
+                )
+            }
+        }
+    }
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues name="AGP (8.13.0)" by="lint 8.13.0" client="gradle" dependencies="false" format="6" type="baseline" variant="all"
+    version="8.13.0">
+
+    <issue errorLine1="// Small window (ex: phone)" errorLine2="^" id="ComposePreviewNaming"
+        message="Preview annotations with 4 preview annotations should end with the `Previews` suffix.&#xA;See https://slackhq.github.io/compose-lints/rules/#naming-multipreview-annotations-properly for more information.">
+        <location column="1" file="src/main/kotlin/com/infomaniak/core/ui/compose/preview/MultiplePreviews.kt" line="23" />
+    </issue>
+
+    <issue errorLine1="// Large window (ex: tablet)" errorLine2="^" id="ComposePreviewNaming"
+        message="Preview annotations with 4 preview annotations should end with the `Previews` suffix.&#xA;See https://slackhq.github.io/compose-lints/rules/#naming-multipreview-annotations-properly for more information.">
+        <location column="1" file="src/main/kotlin/com/infomaniak/core/ui/compose/preview/MultiplePreviews.kt" line="46" />
+    </issue>
+
+    <issue errorLine1="// Small + Large (for Screens)" errorLine2="^" id="ComposePreviewNaming"
+        message="Preview annotations with 2 preview annotations should end with the `Previews` suffix.&#xA;See https://slackhq.github.io/compose-lints/rules/#naming-multipreview-annotations-properly for more information.">
+        <location column="1" file="src/main/kotlin/com/infomaniak/core/ui/compose/preview/MultiplePreviews.kt" line="71" />
+    </issue>
+
+    <issue errorLine1="// Light + Dark (for Components)" errorLine2="^" id="ComposePreviewNaming"
+        message="Preview annotations with 2 preview annotations should end with the `Previews` suffix.&#xA;See https://slackhq.github.io/compose-lints/rules/#naming-multipreview-annotations-properly for more information.">
+        <location column="1" file="src/main/kotlin/com/infomaniak/core/ui/compose/preview/MultiplePreviews.kt" line="76" />
+    </issue>
+
+</issues>

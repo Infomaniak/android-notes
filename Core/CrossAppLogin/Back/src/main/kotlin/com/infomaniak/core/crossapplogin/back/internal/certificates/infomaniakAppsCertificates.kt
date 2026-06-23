@@ -1,0 +1,52 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package com.infomaniak.core.crossapplogin.back.internal.certificates
+
+import com.infomaniak.core.crossapplogin.back.BuildConfig
+import com.infomaniak.core.crossapplogin.back.internal.certificates.LazyAppSigningCertificate as LazyCertificate
+
+internal val infomaniakAppsCertificates = AppSigningCertificates {
+    if (BuildConfig.DEBUG) {
+        this[AppSigningCertificates.WILD_CARD] = setOf(
+            LazyCertificate { "9C:03:99:5E:A4:89:26:53:85:09:A3:1D:6D:54:CB:A7:0F:72:0A:DF:9A:8E:54:BE:36:57:F5:78:70:48:1E:F6" },
+        )
+        return@AppSigningCertificates
+    }
+    // For kDrive, and also for future apps,
+    // granted that when setting up the "App signing key certificate" under "App integrity"/"App Signing" on Play Store listing,
+    // the selected key is not a new one, but the one used by kDrive.
+    this[AppSigningCertificates.WILD_CARD] = setOf(
+        LazyCertificate { "72:C2:E2:2D:56:BA:86:07:C4:D5:A0:95:ED:97:7B:A5:F5:D1:C6:0A:AF:39:C3:3D:E2:33:BE:77:CB:0F:37:78" },
+    )
+    // Apps below unfortunately have a different signing key.
+    this["com.infomaniak.mail"] = setOf(
+        LazyCertificate { "54:CE:26:CB:66:CB:12:EE:E6:FF:51:04:C9:5A:C4:1C:F1:93:9D:B9:C1:83:13:13:AA:52:3D:41:D7:29:EC:C2" },
+    )
+    this["com.infomaniak.euria"] = setOf(
+        LazyCertificate { "C3:10:73:8F:60:AC:5B:F6:65:95:53:BE:C7:21:7D:BF:24:4E:9D:4C:04:BD:7D:5B:F5:51:51:2D:22:E5:03:03" },
+    )
+    this["com.infomaniak.auth"] = setOf(
+        LazyCertificate { "19:EB:55:9E:91:D3:6A:80:FF:17:8D:E1:57:17:54:F1:49:39:4C:D8:7F:2F:91:ED:D9:29:23:F5:0B:18:E7:6F" },
+    )
+    this["com.infomaniak.chat"] = setOf(
+        LazyCertificate { "47:21:4B:15:C3:40:D7:A8:86:0A:ED:FB:E3:3A:5B:41:ED:EE:33:47:0B:2B:15:0C:56:89:58:03:EC:F6:3C:32" },
+    )
+    this["com.infomaniak.swisstransfer"] = setOf(
+        LazyCertificate { "06:C3:1B:0C:0B:45:7D:22:8C:19:31:16:6E:7D:02:34:BA:AA:ED:34:D1:67:AC:D1:F5:E6:64:92:3E:80:63:13" },
+    )
+}

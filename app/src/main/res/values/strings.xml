@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Infomaniak Notes - Android
+  ~ Copyright (C) 2026 Infomaniak Network SA
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  -->
+<resources>
+    <string name="appName" translatable="false">Euria</string>
+    <string name="contentDescriptionCamera">Launch the camera to take a picture</string>
+    <string name="contentDescriptionChat">Chat with Euria</string>
+    <string name="contentDescriptionEphemeralChat">Ephemeral chat</string>
+    <string name="contentDescriptionMicrophone">Voice chat</string>
+    <string name="noNetworkDescription">Check your Internet connection and try again to resume your conversation</string>
+    <string name="noNetworkTitle">No Internet access</string>
+    <string name="noWebViewAvailable">The application requires the WebView component to function. Please activate or update it from the Play Store.</string>
+    <string name="onboardingDatacenterDescription" formatted="false">AI energy is 100% revalued.</string>
+    <string name="onboardingDatacenterTitle">Euria heats homes.</string>
+    <string name="onboardingEphemeralDescriptionArguments">Euria keeps no trace</string>
+    <string name="onboardingEphemeralDescriptionTemplate">%s of your exchanges.</string>
+    <string name="onboardingEphemeralTitle">With the ephemeral mode,</string>
+    <string name="onboardingEuriaDescription">Sovereign AI that respects your data and the planet.</string>
+    <string name="onboardingEuriaTitle">Welcome to Euria</string>
+    <string name="onboardingLoginArguments">Chat now</string>
+    <string name="onboardingLoginTemplate">%s with Euria.</string>
+    <string name="onboardingLoginTitle">Ready to start?</string>
+    <string name="onboardingPrivacyDescription">Nothing is collected, your data belongs to you.</string>
+    <string name="onboardingPrivacyTitle">Euria is hosted in Switzerland.</string>
+</resources>

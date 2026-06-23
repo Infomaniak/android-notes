@@ -1,0 +1,383 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+@file:OptIn(ExperimentalUuidApi::class, ExperimentalCoroutinesApi::class, ExperimentalSplittiesApi::class)
+
+package com.infomaniak.core.twofactorauth.back
+
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.eventFlow
+import com.infomaniak.core.common.DynamicLazyMap
+import com.infomaniak.core.common.Xor
+import com.infomaniak.core.common.combineFor
+import com.infomaniak.core.common.dynamicLazyMap
+import com.infomaniak.core.common.dynamicLazyMapOfSharedFlow
+import com.infomaniak.core.common.emitFirstsUntilSecond
+import com.infomaniak.core.common.rateLimit
+import com.infomaniak.core.sentry.SentryLog
+import com.infomaniak.core.twofactorauth.back.TwoFactorAuth.Outcome
+import com.infomaniak.core.twofactorauth.back.TwoFactorAuthManager.Challenge
+import com.infomaniak.core.twofactorauth.back.TwoFactorAuthManager.Challenge.State.Done
+import com.infomaniak.core.twofactorauth.back.notifications.TwoFactorAuthNotifications
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import splitties.coroutines.raceOf
+import splitties.coroutines.repeatWhileActive
+import splitties.experimental.ExperimentalSplittiesApi
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
+import kotlin.uuid.ExperimentalUuidApi
+
+/**
+ * All consumers need is [challengeToResolve].
+ *
+ * The state inside the [Challenge] type contains callbacks to perform the relevant actions.
+ *
+ * ### IMPORTANT:
+ *
+ * The instance of this class **shall be a singleton**.
+ *
+ * Initialize it in a top-level property, or inside another singleton (not in a getter!):
+ * ```
+ * val twoFactorAuthManager = TwoFactorAuthManager { userId -> AccountUtils.getHttpClient(userId) }
+ * ```
+ *
+ * This will ensure that there's no double concurrent states.
+ */
+class TwoFactorAuthManager(
+    // The CoroutineScope (and its Job) is strongly referenced by shareIn and stateIn, so no need to keep a reference here.
+    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default),
+    private val userIds: Flow<Set<Int>>,
+    private val getAccountInfo: suspend (userId: Int) -> ConnectionAttemptInfo.TargetAccount?,
+    private val getConnectedHttpClient: suspend (userId: Int) -> OkHttpClient
+) {
+
+    private val rateLimitedForegroundEvents = ProcessLifecycleOwner.get().lifecycle.eventFlow.filter {
+        it == Lifecycle.Event.ON_START
+    }.rateLimit(30.seconds, elementsBeforeLimit = 2)
+
+    private val actionedChallengesFlow = MutableStateFlow<Map<Int, RemoteChallenge>>(emptyMap())
+
+    private val perUserIdCacheManager = DynamicLazyMap.CacheManager<Int, Any?> { _, _ ->
+        delay(5.seconds) // Should be more than enough to keep the state between re-uses.
+    }
+
+    private val perUserIdTwoFactoAuth = coroutineScope.dynamicLazyMap(perUserIdCacheManager) { userId: Int ->
+        async<TwoFactorAuth> { TwoFactorAuthImpl(getConnectedHttpClient(userId), userId) }
+    }
+
+    private val perUserIdRefreshTrigger = coroutineScope.dynamicLazyMap(perUserIdCacheManager) { _: Int ->
+        Channel<Unit>(capacity = Channel.CONFLATED)
+    }
+
+    private val perUserIdLatestChallenge = coroutineScope.dynamicLazyMapOfSharedFlow(perUserIdCacheManager) { userId: Int ->
+        flow {
+            perUserIdTwoFactoAuth.useElement(userId) { twoFactorAuthAsync ->
+                val twoFactorAuth = twoFactorAuthAsync.await()
+                perUserIdRefreshTrigger.useElement(userId) { refreshTrigger ->
+                    val refreshEvents = refreshTrigger.receiveAsFlow()
+                    emitAll(refreshEvents.mapLatest { twoFactorAuth to twoFactorAuth.tryGettingLatestChallenge() })
+                }
+            }
+        }
+    }
+
+    private val allCurrentChallenges: Flow<Map<TwoFactorAuth, RemoteChallenge>> = userIds.flatMapLatest { userIds ->
+        perUserIdLatestChallenge.combineFor(userIds) { pairs ->
+            pairs.asSequence().mapNotNull { (twoFactorAuth, challenge) ->
+                twoFactorAuth to (challenge ?: return@mapNotNull null)
+            }.sortedBy { (_, challenge) ->
+                challenge.createdAt
+            }.toMap()
+        }
+    }
+
+    init {
+        coroutineScope.launch {
+            userIds.collectLatest { userIds ->
+                perUserIdRefreshTrigger.useElements(userIds) { triggers ->
+                    rateLimitedForegroundEvents.collect { _ ->
+                        triggers.values.forEach { trigger -> trigger.trySend(Unit) }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * We don't want to bring back any challenges that have been actioned, and are being sent to the backend,
+     * or have been fully handled since the most recent refresh to [allCurrentChallenges].
+     */
+    private val firstUnactionedChallenge: StateFlow<Pair<TwoFactorAuth, RemoteChallenge>?> =
+        allCurrentChallenges.flatMapLatest { challengesMap ->
+            actionedChallengesFlow.map { actionedChallengesMap ->
+                val actionedChallenges = actionedChallengesMap.values.toSet()
+                challengesMap.firstNotNullOfOrNull { (auth, challenge) ->
+                    challenge.takeIf { it !in actionedChallenges }?.let { auth to challenge }
+                }
+            }
+        }.distinctUntilChanged().stateIn(
+            scope = coroutineScope,
+            started = SharingStarted.Lazily,
+            initialValue = null
+        )
+
+    /**
+     * Usage example:
+     *
+     * ```
+     * override fun onMessageReceived(message: RemoteMessage) {
+     *     when (val type = message.data["type"]) {
+     *         TwoFactorAuthNotifications.TYPE -> twoFactorAuthManager.onApprovalChallengePushed(
+     *             remoteMessageData = message.data,
+     *             remoteMessageSentTimeUtcMillis = message.sentTime,
+     *             remoteMessageTimeToLiveSeconds = message.ttl // Note: could be 0 if not set.
+     *         )
+     *         // Other types of notifications
+     *     }
+     * }
+     * ```
+     */
+    fun onApprovalChallengePushed(
+        remoteMessageData: Map<String, String>,
+        remoteMessageSentTimeUtcMillis: Long,
+        remoteMessageTimeToLiveSeconds: Int
+    ) {
+        val userId = remoteMessageData["user_id"]?.toLongOrNull().also {
+            if (it == null) SentryLog.e(TAG, "User id missing, or not an integer")
+        } ?: return
+        val timeToLive = remoteMessageTimeToLiveSeconds.let {
+            when (it) {
+                0 -> 5.minutes // 0 if not set (see FCM RemoteMessage.ttl), fallback to a hardcoded value in this case.
+                else -> it.seconds
+            }
+        }
+        val expirationTimeInMillis = remoteMessageSentTimeUtcMillis + timeToLive.inWholeMilliseconds
+
+        onApprovalChallengePushed(userId, expirationTimeInMillis)
+    }
+
+    fun refreshChallengeNow(userId: Long, fromExplicitUserAction: Boolean = true) {
+        if (fromExplicitUserAction) forgetActionedChallengeFor(userId.toInt())
+        perUserIdRefreshTrigger.useElement(userId.toInt()) { it.trySend(Unit) }
+    }
+
+    private fun forgetActionedChallengeFor(userId: Int) {
+        actionedChallengesFlow.update { it - userId }
+    }
+
+    private fun onApprovalChallengePushed(userId: Long, expirationTimeInMillis: Long) {
+        refreshChallengeNow(userId, fromExplicitUserAction = false)
+        TwoFactorAuthNotifications.postIncomingChallengeNotification(
+            userId = userId,
+            expirationTimeInMillis = expirationTimeInMillis
+        )
+    }
+
+    val challengeToResolve: StateFlow<Challenge?> = flow {
+        repeatWhileActive {
+            val actionData = emitOngoingChallengeUntilAction(
+                firstUnactionedChallenge = firstUnactionedChallenge,
+                getAccountInfo = getAccountInfo
+            )
+            val userId = actionData.twoFactorAuth.userId
+            actionedChallengesFlow.update { it + (userId to actionData.remoteChallenge) }
+            executeChallengeAction(actionData)
+        }
+    }.stateIn(coroutineScope, SharingStarted.Lazily, initialValue = null)
+
+    private companion object {
+        private const val TAG = "TwoFactorAuthManager"
+    }
+
+    data class Challenge(
+        val data: ConnectionAttemptInfo,
+        val attemptTimeMark: TimeMark,
+        val dismiss: () -> Unit,
+        val state: State
+    ) {
+        enum class ApprovalAction { Approve, Reject; }
+
+        sealed interface State {
+
+            /** @property action Send true for approval, false for reject, and null for dismiss */
+            data class ApproveOrReject(val action: ((ApprovalAction) -> Unit)) : Ongoing
+            data class SendingAction(val userChoice: ApprovalAction) : Ongoing
+            data class Done(val data: Outcome.Done) : State
+            data class Issue(val data: Outcome.Issue, val retry: () -> Unit) : State
+
+            sealed interface Ongoing : State
+        }
+    }
+}
+
+private fun RemoteChallenge.toConnectionAttemptInfo(
+    targetAccount: ConnectionAttemptInfo.TargetAccount
+) = ConnectionAttemptInfo(
+    targetAccount = targetAccount,
+    deviceOrBrowserName = device.name,
+    deviceType = device.type,
+    location = location
+)
+
+private fun utcTimestampToTimeMark(utcOffsetMillis: Long): TimeMark {
+    val nowUtcMillis = System.currentTimeMillis()
+    val elapsedMillis = nowUtcMillis - utcOffsetMillis
+    return TimeSource.Monotonic.markNow() - elapsedMillis.milliseconds
+}
+
+/**
+ * Emits the ongoing challenge (or null if none yet), and returns the [ActionedChallengeData] once it has been… actioned
+ * (by the user through the callback in the state included into the [Challenge] object that was emitted beforehand).
+ */
+private suspend fun FlowCollector<Challenge?>.emitOngoingChallengeUntilAction(
+    firstUnactionedChallenge: Flow<Pair<TwoFactorAuth, RemoteChallenge>?>,
+    getAccountInfo: suspend (userId: Int) -> ConnectionAttemptInfo.TargetAccount?,
+): ActionedChallengeData {
+    return emitFirstsUntilSecond(ongoingChallengeAndActionFlow(firstUnactionedChallenge, getAccountInfo))
+}
+
+private fun ongoingChallengeAndActionFlow(
+    firstUnactionedChallenge: Flow<Pair<TwoFactorAuth, RemoteChallenge>?>,
+    getAccountInfo: suspend (userId: Int) -> ConnectionAttemptInfo.TargetAccount?,
+): Flow<Xor<Challenge?, ActionedChallengeData>> = firstUnactionedChallenge.transformLatest { unactionedChallenge ->
+    emit(Xor.First(null)) // Start with no challenge.
+    val (twoFactorAuth, remoteChallenge) = unactionedChallenge ?: return@transformLatest
+    val targetAccount = getAccountInfo(twoFactorAuth.userId)
+        ?: return@transformLatest // User was removed in the meantime (unlikely, but possible).
+
+    val dismissCompletable = CompletableDeferred<Nothing?>()
+    val confirmOrRejectAsync = CompletableDeferred<Challenge.ApprovalAction>()
+    val uiChallenge = Challenge(
+        data = remoteChallenge.toConnectionAttemptInfo(targetAccount),
+        attemptTimeMark = utcTimestampToTimeMark(utcOffsetMillis = remoteChallenge.createdAt * 1000L),
+        dismiss = { dismissCompletable.complete(null) },
+        state = Challenge.State.ApproveOrReject(action = { confirmOrRejectAsync.complete(it) })
+    )
+    emit(Xor.First(uiChallenge))
+    val userChoice = raceOf(
+        { confirmOrRejectAsync.await() },
+        { dismissCompletable.await() }
+    )
+    val actionedChallengeData = ActionedChallengeData(
+        remoteChallenge = remoteChallenge,
+        uiChallenge = uiChallenge,
+        dismissCompletable = dismissCompletable,
+        twoFactorAuth = twoFactorAuth,
+        userChoice = userChoice
+    )
+    emit(Xor.Second(actionedChallengeData))
+}
+
+/**
+ * Performs the backend API call according to the user choice, and handles potential issues (with retry ability).
+ */
+private suspend fun FlowCollector<Challenge?>.executeChallengeAction(actionData: ActionedChallengeData) {
+
+    val userChoice = actionData.userChoice ?: return // Dismissal, nothing to do.
+
+    val dismissCompletable = actionData.dismissCompletable
+    val uiChallenge = actionData.uiChallenge.copy(state = Challenge.State.SendingAction(userChoice = userChoice))
+    val challengeUid = actionData.remoteChallenge.uuid
+    val twoFactorAuth = actionData.twoFactorAuth
+
+    repeatWhileActive {
+        emit(uiChallenge)
+        // We intentionally don't immediately act on dismissal while sending the action to the backend.
+        val outcome: Outcome = when (userChoice) {
+            Challenge.ApprovalAction.Approve -> twoFactorAuth.approveChallenge(challengeUid)
+            Challenge.ApprovalAction.Reject -> twoFactorAuth.rejectChallenge(challengeUid)
+        }
+        if (handleOutcome(outcome, userChoice, uiChallenge, dismissCompletable)) return
+    }
+}
+
+/**
+ * Emit a new version of the [TwoFactorAuthManager.Challenge] with its state updated accordingly to the [Outcome],
+ * and let the user dismiss or ask retrying if applicable.
+ *
+ * @return `true` if handling is done (e.g. the user approved, denied, or dismissed the 2FA challenge),
+ * `false` if there's an error and the user chose to retry.
+ */
+private suspend fun FlowCollector<Challenge?>.handleOutcome(
+    outcome: Outcome,
+    userChoice: Challenge.ApprovalAction,
+    uiChallenge: Challenge,
+    dismissCompletable: CompletableDeferred<Nothing?>,
+): Boolean = when (outcome) {
+    is Outcome.Done -> {
+        val doneChallengeState = outcome.toDoneChallengeState(userChoice)
+        emit(uiChallenge.copy(state = doneChallengeState))
+        if (doneChallengeState.data != Outcome.Done.Success) dismissCompletable.join()
+        true // Return true to break the loop as the challenge was either approved or dismissed
+    }
+    is Outcome.Issue -> {
+        val retryCompletable = Job()
+        val issueChallengeState = Challenge.State.Issue(data = outcome, retry = { retryCompletable.complete() })
+        emit(uiChallenge.copy(state = issueChallengeState))
+        // Wait for either user to choose between retry or dismissal
+        val wasDismissed = raceOf({ retryCompletable.join() }, { dismissCompletable.await() }) == null
+
+        // If dismissed, we consider handling done, hence returning `true`.
+        // Otherwise, we return `false` to have the caller loop for the retry action.
+        wasDismissed
+    }
+}
+
+private fun Outcome.Done.toDoneChallengeState(
+    userChoice: Challenge.ApprovalAction
+): Done = when (this) {
+    Outcome.Done.Success -> Done(if (userChoice == Challenge.ApprovalAction.Reject) Outcome.Done.Rejected else this)
+    else -> Done(this)
+}
+
+private data class ActionedChallengeData(
+    val remoteChallenge: RemoteChallenge,
+    val uiChallenge: Challenge,
+    val dismissCompletable: CompletableDeferred<Nothing?>,
+    val twoFactorAuth: TwoFactorAuth,
+    val userChoice: Challenge.ApprovalAction?,
+)

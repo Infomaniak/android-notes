@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "504269968835",
+    "project_id": "infomaniak-notes",
+    "storage_bucket": "infomaniak-notes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:504269968835:android:c1bd621a9e8c5b2ee2d976",
+        "android_client_info": {
+          "package_name": "com.infomaniak.notes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrKP_11B8OIE9t-I_qA59pO4OPZ44sRSU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

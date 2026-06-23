@@ -1,0 +1,113 @@
+/*
+ * Infomaniak Notes - Android
+ * Copyright (C) 2025-2026 Infomaniak Network SA
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package com.infomaniak.core.webview.ui
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
+import androidx.core.net.toUri
+import com.infomaniak.core.webview.ui.components.WebView
+import kotlinx.serialization.json.Json
+
+class WebViewActivity : ComponentActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val headersString = intent.getStringExtra(EXTRA_HEADERS)
+        val headers = headersString?.let { Json.decodeFromString<Map<String, String>>(it) } ?: mapOf()
+        val urlToQuit = intent.getStringExtra(EXTRA_URL_TO_QUIT)
+        val url = intent.getStringExtra(EXTRA_URL)
+        val domStorageEnabled = intent.getBooleanExtra(EXTRA_DOM_STORAGE_ENABLED, false)
+
+        if (url == null) {// should not happen anymore
+            finish()
+            return
+        }
+
+        setContent {
+            WebView(
+                url = url,
+                headers = headers,
+                onUrlToQuitReached = {
+                    setResult(RESULT_OK)
+                    finish()
+                },
+                urlToQuit = urlToQuit,
+                domStorageEnabled = domStorageEnabled,
+            )
+        }
+    }
+
+    companion object {
+        private const val EXTRA_URL = "EXTRA_URL"
+        private const val EXTRA_HEADERS = "EXTRA_HEADERS"
+        private const val EXTRA_URL_TO_QUIT = "EXTRA_URL_TO_QUIT"
+        private const val EXTRA_DOM_STORAGE_ENABLED = "EXTRA_DOM_STORAGE_ENABLED"
+
+        fun startActivity(
+            context: Context,
+            url: String,
+            headers: Map<String, String>? = mapOf(),
+            hostWhiteList: Set<String> = emptySet(),
+            urlToQuit: String? = null,
+            domStorageEnabled: Boolean = false,
+            activityResultLauncher: ActivityResultLauncher<Intent>? = null,
+        ) {
+            val intent = createIntent(context, url, headers, hostWhiteList, urlToQuit, domStorageEnabled) ?: return
+            activityResultLauncher?.let {
+                activityResultLauncher.launch(intent)
+            } ?: run {
+                context.startActivity(intent)
+            }
+        }
+
+        private fun createIntent(
+            context: Context,
+            url: String,
+            headers: Map<String, String>? = mapOf(),
+            hostWhiteList: Set<String> = emptySet(),
+            urlToQuit: String? = null,
+            domStorageEnabled: Boolean = false,
+        ): Intent? {
+            return url.asValidatedUrl(hostWhiteList)?.let { validUrl ->
+                Intent(context, WebViewActivity::class.java).apply {
+                    putExtra(EXTRA_URL, validUrl)
+                    putExtra(EXTRA_HEADERS, Json.encodeToString(headers))
+                    putExtra(EXTRA_URL_TO_QUIT, urlToQuit)
+                    putExtra(EXTRA_DOM_STORAGE_ENABLED, domStorageEnabled)
+                }
+            }
+        }
+
+        private fun String.asValidatedUrl(hostWhiteList: Set<String>): String? {
+            return takeUnless { isEmpty() || isBlank() || !isAuthorizedUrl(hostWhiteList) }
+        }
+
+        private fun String.isAuthorizedUrl(hostWhiteList: Set<String>): Boolean = toUri().isWhiteListed(hostWhiteList)
+
+        private fun Uri.isWhiteListed(hostWhiteList: Set<String>): Boolean {
+            return hostWhiteList.isEmpty() || hostWhiteList.contains(host)
+        }
+    }
+}
