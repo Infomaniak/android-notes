@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -140,7 +141,7 @@ fun NotesMainScreen(
             launchMediaChooser = { mainViewModel.launchMediaChooser = it },
             microphonePermissionRequest = { mainViewModel.microphonePermissionRequest = it }
         ),
-        withSafeArea = false,
+        modifier = Modifier,
         getWebView = { webView ->
             webView.addJavascriptInterface(webViewUtils.javascriptBridge, JavascriptBridge.NAME)
             currentWebview = webView

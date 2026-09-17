@@ -41,9 +41,9 @@ plugins {
     alias(core.plugins.android.application) // This line should be 1st, or you'll have Gradle sync issue
     alias(core.plugins.compose.compiler)
     alias(libs.plugins.google.services)
-    alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.jetbrains.kotlin.serialization)
-    alias(core.plugins.kapt)
+    alias(core.plugins.ksp)
+    alias(core.plugins.kotlin.parcelize)
     alias(core.plugins.navigation.safeargs)
     alias(libs.plugins.dagger.hilt)
     alias(core.plugins.sentry.plugin)
@@ -172,9 +172,8 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.hilt.androidx.work)
-    kapt(libs.hilt.android.compiler)
-    kapt(libs.hilt.androidx.compiler)
-    kapt(libs.room.processing) // TODO[workaround]: Remove when https://github.com/google/dagger/issues/4693 is fixed.
+    ksp(libs.hilt.android.compiler)
+    ksp(libs.hilt.androidx.compiler)
 
     implementation(libs.kotlinx.serialization.json)
     implementation(core.compose.material3)
