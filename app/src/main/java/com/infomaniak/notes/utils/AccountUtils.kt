@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.withLock
 import io.sentry.protocol.User as SentryUser
 
-object AccountUtils : CredentialManager() {
+object AccountUtils : CredentialManager({ MainApplication.userDataCleanableList }) {
 
     private const val DEFAULT_USER_ID = -1
 
